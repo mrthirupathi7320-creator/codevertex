@@ -539,6 +539,106 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;bac
 @media(max-width:500px){.secure-steps{grid-template-columns:repeat(2,1fr)}.price-strip .offer-price{font-size:24px}}
 </style>
 
+
+<style id="advanced-upgrade-styles">
+  :root { --cv-focus: #7c3aed; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { overflow-x: hidden; }
+  input, textarea, select, button { transition: border-color .2s, box-shadow .2s, transform .2s; }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--cv-focus) !important;
+    box-shadow: 0 0 0 4px rgba(124,58,237,.14) !important;
+  }
+  button:hover, .btn:hover { transform: translateY(-2px); }
+  button:disabled { opacity: .65; cursor: wait; transform: none !important; }
+  .cv-field-error { color: #dc2626; font-size: .82rem; margin-top: 5px; }
+  .cv-invalid { border-color: #dc2626 !important; }
+  .cv-save-status { font-size: .82rem; opacity: .75; margin-top: 8px; }
+  @media (max-width: 640px) {
+    .container, .section, main { width: 100%; max-width: 100%; }
+    button, .btn { min-height: 44px; }
+    input, textarea, select { font-size: 16px !important; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  }
+</style>
+
+
+<style id="stable-no-blink-fix">
+  /* Stable mode: stop excessive visual blinking and continuous motion */
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  body::before,
+  body::after {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .section::before,
+  .project-card::before,
+  .skill-card::before,
+  .contact-card::before,
+  .hero-card::before,
+  .about-card::before,
+  .rainbow-orbs,
+  .rainbow-orbs span {
+    animation: none !important;
+  }
+
+  .loader-overlay::before,
+  .loader-overlay::after,
+  .loader-overlay:before,
+  .loader-overlay:after,
+  .loader-ring,
+  .loader-mark,
+  .loader-dots i,
+  .loader-progress::after,
+  .loader-planet,
+  .planet-core,
+  .planet-ring,
+  .loader-orbit,
+  .loader-stars i,
+  .prism-box,
+  .prism-box::before,
+  .prism-box::after,
+  .prism-core,
+  .prism-heading strong,
+  .prism-line span {
+    animation: none !important;
+  }
+
+  .loader-overlay {
+    transition: opacity .2s ease, visibility .2s ease !important;
+  }
+
+  .blink {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .profile-launch {
+    animation: none !important;
+  }
+
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .deliver-card,
+  .step,
+  .trust-item {
+    transform: none !important;
+  }
+</style>
+
 </head>
 <body>
 
@@ -687,7 +787,7 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;bac
   const CONTACT_EMAIL = "wrong6081@gmail.com"; // replace with your real email
   // ⚠️ Sign up free at formspree.io, create a form, and paste your endpoint below.
   // Every order will then also appear in your Formspree dashboard + instant email — your "orders app".
-  const FORMSPREE_ENDPOINT = "https://formspree.io/f/mrpbkbjk";
+  const FORMSPREE_ENDPOINT = "https://formspree.io/f/xppwreqp";
   document.getElementById('emailContactLink').href = 'mailto:' + CONTACT_EMAIL + '?subject=' + encodeURIComponent('CodeVertex Project Enquiry');
 
   function sendOrder(){
@@ -839,10 +939,14 @@ async function sendProfileEmail(){
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if(!response.ok) throw new Error('Email service failed');
+    if(!response.ok){
+      let detail='';
+      try{ const j=await response.json(); detail=(j.errors&&j.errors.map(e=>e.message).join(', '))||j.error||''; }catch(x){}
+      throw new Error('Status '+response.status+(detail?': '+detail:''));
+    }
     alert('Your project details were sent successfully by email.');
   }catch(error){
-    alert('Unable to send email right now. Please try again.');
+    alert('Unable to send email right now. Please try again. ('+error.message+')');
   }
 }
 </script>
@@ -881,6 +985,85 @@ async function sendProfileEmail(){
 })();
 </script>
 
+
+
+<script id="advanced-upgrade-script">
+(() => {
+  'use strict';
+  const form = document.getElementById('profileForm');
+  if (!form) return;
+
+  const storageKey = 'codevertex_profile_draft_v2';
+  const fields = [...form.querySelectorAll('input, textarea, select')].filter(el => el.name || el.id);
+  const submitButtons = [...form.querySelectorAll('button[type="submit"], input[type="submit"]')];
+
+  const status = document.createElement('div');
+  status.className = 'cv-save-status';
+  status.setAttribute('aria-live', 'polite');
+  form.appendChild(status);
+
+  const getKey = el => el.name || el.id;
+  const saveDraft = () => {
+    const data = {};
+    fields.forEach(el => { if (getKey(el)) data[getKey(el)] = el.value; });
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+      status.textContent = 'Draft saved on this device.';
+    } catch (_) {}
+  };
+
+  const loadDraft = () => {
+    try {
+      const data = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      fields.forEach(el => {
+        const key = getKey(el);
+        if (key && data[key] !== undefined && !el.value) el.value = data[key];
+      });
+    } catch (_) {}
+  };
+
+  const clearErrors = () => {
+    form.querySelectorAll('.cv-field-error').forEach(el => el.remove());
+    fields.forEach(el => el.classList.remove('cv-invalid'));
+  };
+
+  const validate = () => {
+    clearErrors();
+    let valid = true;
+    fields.forEach(el => {
+      if (!el.required) return;
+      if (!String(el.value || '').trim()) {
+        valid = false;
+        el.classList.add('cv-invalid');
+        const error = document.createElement('div');
+        error.className = 'cv-field-error';
+        error.textContent = 'This field is required.';
+        el.insertAdjacentElement('afterend', error);
+      }
+      if (el.type === 'email' && el.value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value)) {
+        valid = false;
+        el.classList.add('cv-invalid');
+      }
+    });
+    if (!valid) status.textContent = 'Please correct the highlighted fields.';
+    return valid;
+  };
+
+  loadDraft();
+  fields.forEach(el => el.addEventListener('input', saveDraft));
+  form.addEventListener('submit', event => {
+    if (!validate()) {
+      event.preventDefault();
+      return;
+    }
+    submitButtons.forEach(btn => { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'Sending...'; });
+    status.textContent = 'Submitting your details securely...';
+  }, true);
+
+  window.addEventListener('online', () => { status.textContent = 'Connection restored.'; });
+  window.addEventListener('offline', () => { status.textContent = 'You are offline. Your draft is saved on this device.'; });
+})();
+</script>
 
 </body>
 </html>
