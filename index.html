@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://formspree.io; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'none';">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>CodeVertex — CS Project Development</title>
@@ -915,7 +915,7 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;bac
 <script>
 function openProfile(){document.getElementById('profileModal').classList.add('show');updateProfilePreview()}
 function closeProfile(){document.getElementById('profileModal').classList.remove('show')}
-function updateProfilePreview(){const n=document.getElementById('pfName').value||'Your Name',d=document.getElementById('pfDept').value||'Department',t=document.getElementById('pfTopic').value||'Your Project';document.getElementById('profilePreview').innerHTML='<b>Live Preview</b><br>👤 '+n+'<br>🎓 '+d+' · '+document.getElementById('pfYear').value+'<br>💻 '+t}
+function updateProfilePreview(){const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const n=esc(document.getElementById('pfName').value||'Your Name'),d=esc(document.getElementById('pfDept').value||'Department'),t=esc(document.getElementById('pfTopic').value||'Your Project');document.getElementById('profilePreview').innerHTML='<b>Live Preview</b><br>👤 '+n+'<br>🎓 '+d+' · '+esc(document.getElementById('pfYear').value)+'<br>💻 '+t}
 ['pfName','pfDept','pfYear','pfTopic'].forEach(id=>document.getElementById(id).addEventListener('input',updateProfilePreview));
 function saveProfile(e){e.preventDefault();const data={name:pfName.value,email:pfEmail.value,department:pfDept.value,year:pfYear.value,topic:pfTopic.value,description:pfDesc.value};localStorage.setItem('codevertexProfile',JSON.stringify(data));alert('Details saved successfully!');closeProfile()}
 async function sendProfileEmail(){
@@ -933,6 +933,19 @@ async function sendProfileEmail(){
     alert('Please fill all required details first.');
     return;
   }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)){
+    alert('Please enter a valid email address.');
+    return;
+  }
+  payload.name = payload.name.slice(0,80);
+  payload.email = payload.email.slice(0,120);
+  payload.department = payload.department.slice(0,80);
+  payload.topic = payload.topic.slice(0,150);
+  payload.description = payload.description.slice(0,1000);
+  try{
+    const last = Number(localStorage.getItem('cvLastSend')||0);
+    if(Date.now()-last < 30000){ alert('Please wait a few seconds before sending again.'); return; }
+  }catch(e){}
   try{
     const response = await fetch(FORMSPREE_ENDPOINT, {
       method: 'POST',
@@ -944,6 +957,7 @@ async function sendProfileEmail(){
       try{ const j=await response.json(); detail=(j.errors&&j.errors.map(e=>e.message).join(', '))||j.error||''; }catch(x){}
       throw new Error('Status '+response.status+(detail?': '+detail:''));
     }
+    try{ localStorage.setItem('cvLastSend', String(Date.now())); }catch(e){}
     alert('Your project details were sent successfully by email.');
   }catch(error){
     alert('Unable to send email right now. Please try again. ('+error.message+')');
